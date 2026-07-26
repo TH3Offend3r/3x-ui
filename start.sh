@@ -1,3 +1,4 @@
+cat > /start.sh << 'EOF'
 #!/bin/bash
 set -e
 
@@ -6,14 +7,9 @@ echo "🚀 Starting X-UI + nginx reverse proxy..."
 export NGINX_PORT=3000
 cd /usr/local/x-ui
 
-echo "🔧 Applying panel settings via x-ui CLI..."
 ./x-ui setting -port 2053 -webBasePath /managepanel/ || true
-
-echo "🔧 Building nginx.conf for fixed port: $NGINX_PORT"
 envsubst '${NGINX_PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
-# ==============================================
-# 🔄 بخش خودکار همگام‌سازی با گیت‌هاب
 # ==============================================
 echo "🔄 Setting up GitHub auto-sync..."
 
@@ -27,11 +23,20 @@ rm -f /sync.py
 cat > /sync.py << 'INNEREOF'
 import os, json, sqlite3, base64, requests, sys
 from datetime import datetime
+import time
 
 TOKEN = os.environ.get('GITHUB_TOKEN')
 REPO = os.environ.get('GITHUB_REPO')
 DB_FILE = os.environ.get('GITHUB_FILE', '3xui_data.json')
 PANEL_DB = '/etc/x-ui/x-ui.db'
+
+def log_msg(msg):
+    print(f"{datetime.now()} - {msg}")
+    try:
+        with open('/var/log/sync.log', 'a') as f:
+            f.write(f"{datetime.now()} - {msg}\n")
+    except:
+        pass
 
 def read_sqlite():
     try:
@@ -53,7 +58,7 @@ def read_sqlite():
         conn.close()
         return data
     except Exception as e:
-        print(f"Error reading DB: {e}")
+        log_msg(f"Error reading DB: {e}")
         return None
 
 def write_sqlite(data):
@@ -76,30 +81,30 @@ def write_sqlite(data):
         conn.close()
         return True
     except Exception as e:
-        print(f"Error writing DB: {e}")
+        log_msg(f"Error writing DB: {e}")
         return False
 
 def read_from_github():
     if not TOKEN or not REPO:
-        print("Missing token or repo")
+        log_msg("Missing token or repo")
         return None
     url = f"https://api.github.com/repos/{REPO}/contents/{DB_FILE}"
     headers = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github+json"}
     try:
         resp = requests.get(url, headers=headers)
         if resp.status_code != 200:
-            print(f"GitHub error: {resp.status_code}")
+            log_msg(f"GitHub error: {resp.status_code}")
             return None
         content = resp.json()['content']
         decoded = base64.b64decode(content).decode()
         return json.loads(decoded)
     except Exception as e:
-        print(f"Error reading from GitHub: {e}")
+        log_msg(f"Error reading from GitHub: {e}")
         return None
 
 def write_to_github(data):
     if not TOKEN or not REPO:
-        print("Missing token or repo")
+        log_msg("Missing token or repo")
         return False
     url = f"https://api.github.com/repos/{REPO}/contents/{DB_FILE}"
     headers = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github+json"}
@@ -118,29 +123,41 @@ def write_to_github(data):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "download":
-        print("⬇️ Downloading from GitHub...")
+        log_msg("⬇️ Downloading from GitHub...")
         data = read_from_github()
         if data and write_sqlite(data):
-            print("✅ Database restored from GitHub")
+            log_msg("✅ Database restored from GitHub")
         else:
-            print("❌ Failed to restore")
+            log_msg("❌ Failed to restore")
     else:
-        print("⬆️ Uploading to GitHub...")
+        log_msg("⬆️ Uploading to GitHub...")
         data = read_sqlite()
         if data and write_to_github(data):
-            print("✅ Backup uploaded to GitHub")
+            log_msg("✅ Backup uploaded to GitHub")
         else:
-            print("❌ Failed to upload")
+            log_msg("❌ Failed to upload")
 INNEREOF
 
+# ==============================================
+# 🚀 اجرای اولیه برای برگردوندن اطلاعات
+# ==============================================
 echo "⬇️ Restoring database from GitHub..."
 python3 /sync.py download
 
-echo "⏰ Setting up cron job..."
-echo "*/5 * * * * cd / && python3 /sync.py >> /var/log/sync.log 2>&1" > /etc/crontab
-crond -b
+# ==============================================
+# 🔄 اجرای یک لوپ بینهایت برای همگام‌سازی خودکار
+# ==============================================
+echo "🔄 Starting infinite sync loop (every 60 seconds)..."
 
-echo "✅ Auto-sync setup complete!"
+# اجرا در پس‌زمینه با nohup
+nohup bash -c '
+while true; do
+    python3 /sync.py >> /var/log/sync.log 2>&1
+    sleep 60
+done
+' &
+
+echo "✅ Auto-sync loop started in background!"
 # ==============================================
 
 echo "▶️  Starting x-ui..."
@@ -149,3 +166,4 @@ echo "▶️  Starting x-ui..."
 echo "▶️  Starting nginx..."
 nginx -t
 exec nginx -g "daemon off;"
+EOF
