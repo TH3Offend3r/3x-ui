@@ -17,18 +17,14 @@ envsubst '${NGINX_PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.con
 # ==============================================
 echo "🔄 Setting up GitHub auto-sync..."
 
-# نصب پایتون
 if ! command -v python3 &> /dev/null; then
     echo "📦 Installing python3..."
     apk add --no-cache python3 py3-pip
     pip3 install requests --break-system-packages || true
 fi
 
-# حذف فایل قبلی
 rm -f /sync.py
-
-# ساختن فایل sync.py با کد اصلاح شده
-cat > /sync.py << 'EOF'
+cat > /sync.py << 'INNEREOF'
 import os, json, sqlite3, base64, requests, sys
 from datetime import datetime
 
@@ -135,13 +131,11 @@ if __name__ == "__main__":
             print("✅ Backup uploaded to GitHub")
         else:
             print("❌ Failed to upload")
-EOF
+INNEREOF
 
-# برگردوندن اطلاعات از گیت‌هاب
 echo "⬇️ Restoring database from GitHub..."
 python3 /sync.py download
 
-# تنظیم کرون برای آپلود خودکار
 echo "⏰ Setting up cron job..."
 echo "*/5 * * * * cd / && python3 /sync.py >> /var/log/sync.log 2>&1" > /etc/crontab
 crond -b
