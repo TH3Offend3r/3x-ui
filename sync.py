@@ -10,6 +10,7 @@ def log(msg):
     print(f"{datetime.now()} - {msg}")
 
 try:
+    # خوندن دیتابیس
     conn = sqlite3.connect(PANEL_DB)
     c = conn.cursor()
     c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
@@ -24,6 +25,7 @@ try:
         data[name] = [dict(zip(cols, row)) for row in rows]
     conn.close()
     
+    # آپلود به گیت‌هاب
     url = f"https://api.github.com/repos/{REPO}/contents/{DB_FILE}"
     headers = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github+json"}
     r = requests.get(url, headers=headers)
