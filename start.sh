@@ -24,10 +24,10 @@ if ! command -v python3 &> /dev/null; then
     pip3 install requests --break-system-packages || true
 fi
 
-# حذف فایل خراب قبلی
+# حذف فایل قبلی
 rm -f /sync.py
 
-# ساختن فایل sync.py
+# ساختن فایل sync.py با کد اصلاح شده
 cat > /sync.py << 'EOF'
 import os, json, sqlite3, base64, requests, sys
 from datetime import datetime
@@ -41,7 +41,7 @@ def read_sqlite():
     try:
         conn = sqlite3.connect(PANEL_DB)
         cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
         tables = cursor.fetchall()
         data = {}
         for table in tables:
@@ -67,7 +67,8 @@ def write_sqlite(data):
         conn = sqlite3.connect(PANEL_DB)
         cursor = conn.cursor()
         for table_name, rows in data.items():
-            if not rows: continue
+            if not rows or table_name.startswith('sqlite_'):
+                continue
             columns = list(rows[0].keys())
             col_defs = ', '.join([f'"{col}" TEXT' for col in columns])
             cursor.execute(f'CREATE TABLE IF NOT EXISTS "{table_name}" ({col_defs})')
