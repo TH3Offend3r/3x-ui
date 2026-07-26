@@ -101,7 +101,7 @@ echo "⬇️ Restoring database from GitHub..."
 python3 /sync.py download
 
 # بک‌آپ خودکار هر ۱ دقیقه (با nohup)
-nohup bash -c 'while true; do python3 /sync.py >> /var/log/sync.log 2>&1; sleep 60; done' &
+nohup bash -c 'while true; do python3 /sync.py >> /var/log/sync.log 2>&1; sleep 300; done' &
 
 # تنظیمات پنل
 ./x-ui setting -port 2053 -webBasePath /managepanel/ || true
