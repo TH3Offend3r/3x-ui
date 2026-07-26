@@ -51,8 +51,13 @@ try:
     headers = {"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github+json"}
     r = requests.get(url, headers=headers)
     sha = r.json().get('sha') if r.status_code == 200 else None
-    payload = {"message": f"Backup {datetime.now()}", "content": base64.b64encode(json.dumps(data, indent=2, default=str).encode()).decode()}
+    
+    payload = {
+        "message": f"Backup {datetime.now()}",
+        "content": base64.b64encode(json.dumps(data, indent=2, default=str).encode()).decode()
+    }
     if sha: payload["sha"] = sha
+    
     r = requests.put(url, headers=headers, json=payload)
     log("✅ Backup OK" if r.status_code in [200, 201] else f"❌ Error: {r.status_code}")
 except Exception as e:
@@ -60,15 +65,17 @@ except Exception as e:
 EOF
 
 # ==============================================
-# برگردوندن اطلاعات (اگه فایل گیت‌هاب وجود داشته باشه)
+# برگردوندن اطلاعات
 echo "⬇️ Restoring database from GitHub..."
 python3 /sync.py
 
 # ==============================================
-# راه‌اندازی cron برای اجرای هر ۱ دقیقه
-echo "⏰ Setting up cron for every minute..."
-echo "* * * * * /usr/bin/python3 /sync.py >> /var/log/sync.log 2>&1" > /etc/crontab
-crond -b -L /var/log/cron.log
+# اجرای بک‌آپ هر ۱ دقیقه با while (به جای cron)
+echo "🔄 Starting auto-backup loop (every 1 minute)..."
+while true; do
+    sleep 60
+    python3 /sync.py >> /var/log/sync.log 2>&1
+done &
 
 # ==============================================
 echo "✅ Auto-sync is running (every 1 minute)."
