@@ -7,9 +7,7 @@ DB_FILE = os.environ.get('GITHUB_FILE', '3xui_data.json')
 PANEL_DB = '/etc/x-ui/x-ui.db'
 
 def log(msg):
-    with open('/var/log/sync.log', 'a') as f:
-        f.write(f"{datetime.now()} - {msg}\n")
-    print(msg)
+    print(f"{datetime.now()} - {msg}")
 
 try:
     conn = sqlite3.connect(PANEL_DB)
