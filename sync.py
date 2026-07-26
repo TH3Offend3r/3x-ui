@@ -7,20 +7,22 @@ DB_FILE = os.environ.get('GITHUB_FILE', '3xui_data.json')
 PANEL_DB = '/etc/x-ui/x-ui.db'
 
 def log(msg):
-    print(f"{datetime.now()} - {msg}")
+    with open('/var/log/sync.log', 'a') as f:
+        f.write(f"{datetime.now()} - {msg}\n")
+    print(msg)
 
 try:
     conn = sqlite3.connect(PANEL_DB)
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
-    tables = cursor.fetchall()
+    c = conn.cursor()
+    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+    tables = c.fetchall()
     data = {}
-    for table in tables:
-        name = table[0]
-        cursor.execute(f"SELECT * FROM {name}")
-        rows = cursor.fetchall()
-        cursor.execute(f"PRAGMA table_info({name})")
-        cols = [c[1] for c in cursor.fetchall()]
+    for t in tables:
+        name = t[0]
+        c.execute(f"SELECT * FROM {name}")
+        rows = c.fetchall()
+        c.execute(f"PRAGMA table_info({name})")
+        cols = [col[1] for col in c.fetchall()]
         data[name] = [dict(zip(cols, row)) for row in rows]
     conn.close()
     
