@@ -12,13 +12,6 @@ echo "🔧 Applying panel settings via x-ui CLI..."
 echo "🔧 Building nginx.conf for fixed port: $NGINX_PORT"
 envsubst '${NGINX_PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
-echo "▶️  Starting x-ui in background..."
-./x-ui &
-sleep 2
-
-echo "▶️  Starting nginx in foreground on port $NGINX_PORT..."
-nginx -t
-
 # ==============================================
 # 🔄 بخش خودکار همگام‌سازی با گیت‌هاب
 # ==============================================
@@ -31,10 +24,10 @@ if ! command -v python3 &> /dev/null; then
     pip3 install requests --break-system-packages || true
 fi
 
-# حذف فایل خراب قبلی و ساختن دوباره
+# حذف فایل خراب قبلی
 rm -f /sync.py
 
-# ساختن فایل sync.py به صورت مستقیم (بدون دانلود از گیت‌هاب)
+# ساختن فایل sync.py
 cat > /sync.py << 'EOF'
 import os, json, sqlite3, base64, requests, sys
 from datetime import datetime
@@ -143,16 +136,21 @@ if __name__ == "__main__":
             print("❌ Failed to upload")
 EOF
 
-# اجرا برای برگردوندن اطلاعات
+# برگردوندن اطلاعات از گیت‌هاب
 echo "⬇️ Restoring database from GitHub..."
 python3 /sync.py download
 
-# تنظیم کرون
+# تنظیم کرون برای آپلود خودکار
 echo "⏰ Setting up cron job..."
 echo "*/5 * * * * cd / && python3 /sync.py >> /var/log/sync.log 2>&1" > /etc/crontab
-crond -f &
+crond -b
 
 echo "✅ Auto-sync setup complete!"
 # ==============================================
 
+echo "▶️  Starting x-ui..."
+./x-ui &
+
+echo "▶️  Starting nginx..."
+nginx -t
 exec nginx -g "daemon off;"
