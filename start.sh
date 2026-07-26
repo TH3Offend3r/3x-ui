@@ -14,7 +14,6 @@ envsubst '${NGINX_PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.con
 
 echo "▶️  Starting x-ui in background..."
 ./x-ui &
-X_UI_PID=$!
 sleep 2
 
 echo "▶️  Starting nginx in foreground on port $NGINX_PORT..."
@@ -32,7 +31,10 @@ if ! command -v python3 &> /dev/null; then
     pip3 install requests --break-system-packages || true
 fi
 
-# ساختن فایل sync.py به صورت دستی (بدون دانلود)
+# حذف فایل خراب قبلی و ساختن دوباره
+rm -f /sync.py
+
+# ساختن فایل sync.py به صورت مستقیم (بدون دانلود از گیت‌هاب)
 cat > /sync.py << 'EOF'
 import os, json, sqlite3, base64, requests, sys
 from datetime import datetime
